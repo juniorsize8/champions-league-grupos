@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Champions League — Fase de Grupos</title>
+<style>
+  :root{
+    --bg:#0b1220; --bg-elev:#111a2b; --bg-elev-2:#0f1830;
+    --border:#223047; --text:#eef2f8; --text-dim:#8ea0b8;
+    --accent:#22c55e; --accent-dim:#0f2a1a;
+    --warn:#eab308; --warn-dim:#2a2410;
+    --danger:#ef4444; --danger-dim:#2a1414;
+    --info:#3b82f6; --info-dim:#12203f;
+    --chip-off:#28374d;
+    --radius:12px;
+    --shadow:0 1px 3px rgba(0,0,0,0.4);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:Arial,Helvetica,sans-serif;}
+  #app{max-width:1100px; margin:0 auto; padding:16px; padding-bottom:48px;}
+
+  header.top{display:flex; align-items:center; gap:12px; padding-bottom:14px; border-bottom:1px solid var(--border); margin-bottom:16px; flex-wrap:wrap;}
+  header.top .emoji{font-size:28px;}
+  header.top h1{font-size:19px; margin:0;}
+  header.top p{font-size:12px; color:var(--text-dim); margin:2px 0 0;}
+  header.top .progress{margin-left:auto; font-size:12px; color:var(--text-dim); text-align:right;}
+  header.top .progress b{color:var(--text); font-size:14px;}
+
+  nav.tabs{display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;}
+  nav.tabs button{background:var(--bg-elev); color:var(--text-dim); border:1px solid var(--border); border-radius:999px; padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer;}
+  nav.tabs button.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+  .rules-note{font-size:11.5px; color:var(--text-dim); background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; margin-bottom:16px;}
+
+  .chip-grid{display:grid; grid-template-columns:repeat(8,1fr); gap:8px; margin-bottom:18px;}
+  @media (max-width:620px){ .chip-grid{grid-template-columns:repeat(4,1fr);} }
+  .chip{position:relative; background:var(--bg-elev); border:1px solid var(--border); border-radius:10px; padding:12px 0; text-align:center; font-weight:700; font-size:15px; cursor:pointer; color:var(--text);}
+  .chip.sel{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .chip .dot{position:absolute; top:6px; right:8px; width:8px; height:8px; border-radius:50%;}
+  .dot-green{background:var(--accent);} .dot-yellow{background:var(--warn);} .dot-gray{background:var(--chip-off);}
+  .legend{display:flex; gap:16px; font-size:11.5px; color:var(--text-dim); margin:-8px 0 20px; flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend i{width:8px; height:8px; border-radius:50%; display:inline-block;}
+
+  .card{background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px;}
+  .card h2{font-size:15px; margin:0 0 10px;}
+  .card h2 .sub{font-weight:400; color:var(--text-dim); font-size:12px; float:right;}
+
+  table.standings{width:100%; border-collapse:collapse; font-size:13px;}
+  table.standings th{text-align:left; color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; padding:6px 6px; border-bottom:1px solid var(--border);}
+  table.standings td{padding:7px 6px; border-bottom:1px solid var(--border);}
+  table.standings td.num, table.standings th.num{text-align:center;}
+  table.standings tr:last-child td{border-bottom:none;}
+  .pos-badge{display:inline-block; width:18px; height:18px; line-height:18px; border-radius:50%; background:var(--bg-elev-2); text-align:center; font-size:11px; font-weight:700; margin-right:6px;}
+  .pos-1, .pos-2{background:var(--accent-dim); color:var(--accent);}
+
+  .match-row{display:flex; align-items:center; gap:8px; padding:9px 4px; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .match-row:last-child{border-bottom:none;}
+  .match-row .name{flex:1 1 120px; font-size:13px; font-weight:600;}
+  .match-row .name.win{color:var(--accent);}
+  .match-row input.score{width:38px; text-align:center; padding:5px 2px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;}
+  .match-row .x{color:var(--text-dim); font-size:12px;}
+  .match-row .pts-preview{font-size:10.5px; color:var(--text-dim); min-width:78px;}
+  .match-row .pts-preview b{color:var(--text);}
+  .match-row .tb-tag{font-size:10px; font-weight:700; color:var(--warn); background:var(--warn-dim); border-radius:6px; padding:2px 6px;}
+  .match-row .cancel-tag{font-size:10px; font-weight:700; color:var(--danger); background:var(--danger-dim); border-radius:6px; padding:2px 6px;}
+  .match-row button{border:1px solid var(--border); background:var(--bg-elev-2); color:var(--text); border-radius:6px; padding:5px 10px; font-size:11.5px; font-weight:600; cursor:pointer;}
+  .match-row button.save{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .match-row button.save[disabled]{opacity:.4; cursor:default;}
+  .match-row .cancel-link{font-size:10.5px; color:var(--text-dim); background:none; border:none; text-decoration:underline; cursor:pointer; padding:2px;}
+
+  .overview-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px;}
+  .ov-card{background:var(--bg-elev); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+  .ov-card .hd{background:var(--info); color:#fff; font-weight:700; font-size:12.5px; padding:6px 10px; display:flex; justify-content:space-between;}
+  .ov-card table{width:100%; border-collapse:collapse; font-size:11.5px;}
+  .ov-card td{padding:5px 8px; border-bottom:1px solid var(--border);}
+  .ov-card tr:last-child td{border-bottom:none;}
+  .ov-card td.n{text-align:center; width:20px; color:var(--text-dim);}
+  .ov-card td.p{text-align:right; font-weight:700; width:26px;}
+  .ov-card tr.top td{background:var(--accent-dim);}
+
+  .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:30px 0;}
+  .toast{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--danger); color:#fff; padding:8px 16px; border-radius:8px; font-size:12.5px; display:none;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+(function(){
+  var ROUNDS = [[1,4],[2,3],[1,3],[2,4],[1,2],[3,4]];
+  var state = { groups: {}, order: [], selected: null, tab: "grupos", loaded: false };
+  var pendingEdits = {};
+
+  function el(tag, attrs, children){
+    var e = document.createElement(tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function(k){
+      if(k === "class") e.className = attrs[k];
+      else if(k === "html") e.innerHTML = attrs[k];
+      else if(k.indexOf("on") === 0) e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    (children||[]).forEach(function(c){ if(c) e.appendChild(c); });
+    return e;
+  }
+  function txt(s){ return document.createTextNode(s); }
+  function showToast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    setTimeout(function(){ t.style.display = "none"; }, 3000);
+  }
+
+  function matchPoints(a, b){
+    if(a === null || a === undefined || b === null || b === undefined) return [null,null];
+    if(a === b) return [0,0];
+    var hi = Math.max(a,b), lo = Math.min(a,b);
+    var tb = (hi === 7 && lo === 6);
+    if(a > b) return tb ? [2,1] : [3,0];
+    return tb ? [1,2] : [0,3];
+  }
+  function isTieBreak(a,b){
+    if(a===null||b===null||a===undefined||b===undefined) return false;
+    var hi=Math.max(a,b), lo=Math.min(a,b);
+    return hi===7 && lo===6;
+  }
+
+  function standingsFor(group){
+    var table = {};
+    [1,2,3,4].forEach(function(p){
+      table[p] = { pos:p, name:(group.players && group.players[p]) || ("Jogador "+p), J:0,V:0,D:0,Pts:0,GF:0,GA:0 };
+    });
+    (group.matches||[]).forEach(function(m){
+      if(m.cancelled) return;
+      if(m.scoreA===null || m.scoreA===undefined || m.scoreB===null || m.scoreB===undefined) return;
+      var pa = table[m.posA], pb = table[m.posB];
+      pa.GF += m.scoreA; pa.GA += m.scoreB;
+      pb.GF += m.scoreB; pb.GA += m.scoreA;
+      pa.J += 1; pb.J += 1;
+      var pts = matchPoints(m.scoreA, m.scoreB);
+      pa.Pts += pts[0]; pb.Pts += pts[1];
+      if(m.scoreA > m.scoreB){ pa.V+=1; pb.D+=1; } else { pb.V+=1; pa.D+=1; }
+    });
+    var arr = [1,2,3,4].map(function(p){ return table[p]; });
+    arr.forEach(function(r){ r.Saldo = r.GF - r.GA; });
+    arr.sort(function(x,y){
+      if(y.Pts !== x.Pts) return y.Pts - x.Pts;
+      if(y.Saldo !== x.Saldo) return y.Saldo - x.Saldo;
+      return y.GF - x.GF;
+    });
+    return arr;
+  }
+
+  function groupStatus(group){
+    var resolved = resolvedCount(group);
+    if(resolved === 0) return "gray";
+    if(resolved === 6) return "green";
+    return "yellow";
+  }
+  function resolvedCount(group){
+    var n=0;
+    (group.matches||[]).forEach(function(m){ if(m.cancelled || (m.scoreA!==null && m.scoreA!==undefined)) n++; });
+    return n;
+  }
+
+  function apiGet(){
+    return fetch("/api/groups").then(function(r){ return r.json(); });
+  }
+  function apiSave(groupId, idx, scoreA, scoreB, cancelled){
+    return fetch("/api/groups/" + groupId + "/matches/" + idx, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ scoreA: scoreA, scoreB: scoreB, cancelled: !!cancelled })
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(e){ throw new Error(e.error || "erro ao salvar"); });
+      return r.json();
+    });
+  }
+
+  function loadData(){
+    return apiGet().then(function(data){
+      state.groups = {};
+      state.order = [];
+      (data.groups||[]).forEach(function(g){
+        var id = String(g.number);
+        state.groups[id] = g;
+        state.order.push(id);
+      });
+      state.order.sort(function(a,b){ return parseInt(a,10) - parseInt(b,10); });
+      if(state.selected === null && state.order.length) state.selected = state.order[0];
+      state.loaded = true;
+      render();
+    }).catch(function(e){
+      console.error(e);
+      state.loaded = true;
+      render();
+    });
+  }
+
+  function saveMatch(groupId, idx, scoreA, scoreB, cancelled){
+    apiSave(groupId, idx, scoreA, scoreB, cancelled).then(function(resp){
+      state.groups[groupId] = resp.group;
+      delete pendingEdits[groupId+"_"+idx];
+      render();
+    }).catch(function(e){
+      showToast(e.message || "Erro ao salvar resultado");
+    });
+  }
+
+  function render(){
+    var app = document.getElementById("app");
+    app.innerHTML = "";
+
+    var totalMatches = state.order.length * 6;
+    var doneMatches = 0;
+    state.order.forEach(function(id){ doneMatches += resolvedCount(state.groups[id]); });
+
+    var head = el("header", {class:"top"}, [
+      el("div", {class:"emoji", html:"🎾"}),
+      el("div", {}, [
+        el("h1", {}, [txt("Champions League — Fase de Grupos")]),
+        el("p", {}, [txt("16 grupos · 4 jogadores por grupo · todos jogam entre si")])
+      ]),
+      el("div", {class:"progress"}, [
+        el("b", {}, [txt(doneMatches + " / " + totalMatches)]),
+        el("br"),
+        txt("jogos lançados")
+      ])
+    ]);
+    app.appendChild(head);
+
+    var tabs = el("nav", {class:"tabs"}, [
+      el("button", {class: state.tab==="grupos" ? "active":"", onclick:function(){ state.tab="grupos"; render(); }}, [txt("Grupos")]),
+      el("button", {class: state.tab==="visao" ? "active":"", onclick:function(){ state.tab="visao"; render(); }}, [txt("Visão Geral")])
+    ]);
+    app.appendChild(tabs);
+
+    app.appendChild(el("div", {class:"rules-note"}, [txt(
+      "Pontuação: vitória normal = 3 pts · vitória no tie-break (7x6) = 2 pts · derrota no tie-break = 1 pt · derrota normal = 0 pt. Qualquer pessoa com este link pode lançar ou editar um resultado."
+    )]));
+
+    if(!state.loaded){
+      app.appendChild(el("div", {class:"empty"}, [txt("Carregando dados do campeonato...")]));
+      return;
+    }
+
+    if(state.tab === "grupos"){
+      renderGruposTab(app);
+    } else {
+      renderVisaoTab(app);
+    }
+  }
+
+  function renderGruposTab(app){
+    var chipGrid = el("div", {class:"chip-grid"});
+    state.order.forEach(function(id){
+      var g = state.groups[id];
+      var status = groupStatus(g);
+      var dotClass = status === "green" ? "dot-green" : (status === "yellow" ? "dot-yellow" : "dot-gray");
+      var chip = el("div", {
+        class: "chip" + (state.selected === id ? " sel" : ""),
+        onclick: (function(gid){ return function(){ state.selected = gid; render(); }; })(id)
+      }, [
+        txt(id),
+        el("span", {class:"dot " + dotClass})
+      ]);
+      chipGrid.appendChild(chip);
+    });
+    app.appendChild(chipGrid);
+
+    app.appendChild(el("div", {class:"legend"}, [
+      el("span", {}, [el("i", {style:"background:var(--accent)"}), txt("Completo")]),
+      el("span", {}, [el("i", {style:"background:var(--warn)"}), txt("Em andamento")]),
+      el("span", {}, [el("i", {style:"background:var(--chip-off)"}), txt("Sem jogos")])
+    ]));
+
+    var group = state.groups[state.selected];
+    if(!group){
+      app.appendChild(el("div", {class:"empty"}, [txt("Grupo sem dados ainda.")]));
+      return;
+    }
+
+    var card = el("div", {class:"card"});
+    card.appendChild(el("h2", {}, [
+      txt("Grupo " + state.selected),
+      el("span", {class:"sub"}, [txt(resolvedCount(group) + "/6 jogos")])
+    ]));
+
+    var table = el("table", {class:"standings"});
+    var thead = el("tr", {}, [
+      el("th", {}, [txt("#")]), el("th", {}, [txt("Jogador")]),
+      el("th", {class:"num"}, [txt("J")]), el("th", {class:"num"}, [txt("V")]),
+      el("th", {class:"num"}, [txt("D")]), el("th", {class:"num"}, [txt("Pts")]),
+      el("th", {class:"num"}, [txt("Saldo")])
+    ]);
+    table.appendChild(thead);
+    standingsFor(group).forEach(function(row, i){
+      var tr = el("tr", {}, [
+        el("td", {}, [el("span", {class:"pos-badge" + (i<2?" pos-"+(i+1):"")}, [txt(String(i+1))])]),
+        el("td", {}, [txt(row.name)]),
+        el("td", {class:"num"}, [txt(String(row.J))]),
+        el("td", {class:"num"}, [txt(String(row.V))]),
+        el("td", {class:"num"}, [txt(String(row.D))]),
+        el("td", {class:"num"}, [txt(String(row.Pts))]),
+        el("td", {class:"num"}, [txt((row.Saldo>0?"+":"")+row.Saldo)])
+      ]);
+      table.appendChild(tr);
+    });
+    card.appendChild(table);
+    app.appendChild(card);
+
+    var matchesCard = el("div", {class:"card"});
+    matchesCard.appendChild(el("h2", {}, [txt("Jogos")]));
+    (group.matches || []).forEach(function(m, idx){
+      matchesCard.appendChild(renderMatchRow(state.selected, group, m, idx));
+    });
+    app.appendChild(matchesCard);
+  }
+
+  function renderMatchRow(groupId, group, m, idx){
+    var nameA = group.players[m.posA], nameB = group.players[m.posB];
+    var key = groupId + "_" + idx;
+    var edit = pendingEdits[key] || { a: m.scoreA, b: m.scoreB };
+
+    var row = el("div", {class:"match-row"});
+    var aWin = m.scoreA !== null && m.scoreA !== undefined && m.scoreA > m.scoreB;
+    var bWin = m.scoreA !== null && m.scoreA !== undefined && m.scoreB > m.scoreA;
+
+    row.appendChild(el("div", {class:"name" + (aWin?" win":"")}, [txt(nameA)]));
+
+    if(m.cancelled){
+      row.appendChild(el("span", {class:"cancel-tag"}, [txt("CANCELADO")]));
+    }
+
+    var inputA = el("input", {class:"score", type:"number", min:"0", value: edit.a===null||edit.a===undefined?"":edit.a});
+    var inputB = el("input", {class:"score", type:"number", min:"0", value: edit.b===null||edit.b===undefined?"":edit.b});
+    inputA.disabled = !!m.cancelled;
+    inputB.disabled = !!m.cancelled;
+
+    var ptsPreview = el("div", {class:"pts-preview"});
+    function refreshPreview(){
+      var a = inputA.value === "" ? null : parseInt(inputA.value, 10);
+      var b = inputB.value === "" ? null : parseInt(inputB.value, 10);
+      pendingEdits[key] = { a: a, b: b };
+      ptsPreview.innerHTML = "";
+      if(a !== null && b !== null && !isNaN(a) && !isNaN(b)){
+        var pts = matchPoints(a,b);
+        if(isTieBreak(a,b)) ptsPreview.appendChild(el("span",{class:"tb-tag"},[txt("TIE-BREAK")]));
+        ptsPreview.appendChild(el("b",{},[txt(" "+pts[0]+"pt | "+pts[1]+"pt")]));
+      }
+      saveBtn.disabled = (a===null || b===null || isNaN(a) || isNaN(b) || (a===m.scoreA && b===m.scoreB && !m.cancelled));
+    }
+    inputA.addEventListener("input", refreshPreview);
+    inputB.addEventListener("input", refreshPreview);
+
+    var saveBtn = el("button", {class:"save", onclick:function(){
+      var a = inputA.value === "" ? null : parseInt(inputA.value, 10);
+      var b = inputB.value === "" ? null : parseInt(inputB.value, 10);
+      if(a===null || b===null || isNaN(a) || isNaN(b) || a===b) return;
+      saveMatch(groupId, idx, a, b, false);
+    }}, [txt("Salvar")]);
+
+    row.appendChild(inputA);
+    row.appendChild(el("span", {class:"x"}, [txt("x")]));
+    row.appendChild(inputB);
+    row.appendChild(el("div", {class:"name" + (bWin?" win":"")}, [txt(nameB)]));
+    row.appendChild(ptsPreview);
+    row.appendChild(saveBtn);
+
+    var cancelLink = el("button", {class:"cancel-link", onclick:function(){
+      saveMatch(groupId, idx, null, null, !m.cancelled);
+    }}, [txt(m.cancelled ? "Reabrir jogo" : "Cancelar jogo")]);
+    row.appendChild(cancelLink);
+
+    refreshPreview();
+    return row;
+  }
+
+  function renderVisaoTab(app){
+    var grid = el("div", {class:"overview-grid"});
+    state.order.forEach(function(id){
+      var g = state.groups[id];
+      if(!g) return;
+      var card = el("div", {class:"ov-card"});
+      card.appendChild(el("div", {class:"hd"}, [txt("Grupo "+id), txt(resolvedCount(g)+"/6")]));
+      var table = el("table");
+      standingsFor(g).forEach(function(row, i){
+        var tr = el("tr", {class: i<2 ? "top":""}, [
+          el("td", {class:"n"}, [txt(String(i+1))]),
+          el("td", {}, [txt(row.name)]),
+          el("td", {style:"text-align:center;color:var(--text-dim);font-size:10.5px;"}, [txt(row.V+"V "+row.D+"D")]),
+          el("td", {class:"p"}, [txt(String(row.Pts))])
+        ]);
+        table.appendChild(tr);
+      });
+      card.appendChild(table);
+      grid.appendChild(card);
+    });
+    app.appendChild(grid);
+  }
+
+  render();
+  loadData();
+  // atualização periódica pra quem entra depois já ver o resultado mais recente
+  setInterval(loadData, 8000);
+})();
+</script>
+</body>
+</html>
