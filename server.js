@@ -30,7 +30,7 @@ app.get("/api/groups", (req, res) => {
 
 app.post("/api/groups/:id/matches/:idx", (req, res) => {
   const { id, idx } = req.params;
-  const { scoreA, scoreB, cancelled } = req.body || {};
+  const { scoreA, scoreB, cancelled, reset } = req.body || {};
   const i = parseInt(idx, 10);
 
   if (!Number.isInteger(i) || i < 0) {
@@ -42,7 +42,12 @@ app.post("/api/groups/:id/matches/:idx", (req, res) => {
   if (!group) return res.status(404).json({ error: "group not found" });
   if (!group.matches[i]) return res.status(404).json({ error: "match not found" });
 
-  if (cancelled) {
+  if (reset) {
+    // Limpa totalmente o jogo de volta ao estado "não jogado" (usado pelo botão Limpar / Reabrir jogo)
+    group.matches[i].scoreA = null;
+    group.matches[i].scoreB = null;
+    group.matches[i].cancelled = false;
+  } else if (cancelled) {
     group.matches[i].scoreA = null;
     group.matches[i].scoreB = null;
     group.matches[i].cancelled = true;
