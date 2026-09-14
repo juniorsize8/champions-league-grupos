@@ -203,7 +203,7 @@
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ scoreA: scoreA, scoreB: scoreB, cancelled: !!cancelled, reset: !!reset })
     }).then(function(r){
-      if(!r.ok) return r.json().then(function(e){ throw new Error(e.error || "erro ao salvar""); });
+      if(!r.ok) return r.json().then(function(e){ throw new Error(e.error || "erro ao salvar"); });
       return r.json();
     });
   }
@@ -488,4 +488,3 @@
 </script>
 </body>
 </html>
-"
