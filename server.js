@@ -1,7 +1,3 @@
-
-server_js_conteudo.txt
-
-100%
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
