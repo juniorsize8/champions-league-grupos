@@ -100,8 +100,8 @@
         {
           "posA": 3,
           "posB": 4,
-          "scoreA": null,
-          "scoreB": null,
+          "scoreA": 6,
+          "scoreB": 2,
           "cancelled": false
         }
       ]
