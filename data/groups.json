@@ -464,8 +464,8 @@
         {
           "posA": 1,
           "posB": 2,
-          "scoreA": null,
-          "scoreB": null,
+          "scoreA": 6,
+          "scoreB": 0,
           "cancelled": false
         },
         {
