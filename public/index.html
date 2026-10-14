@@ -102,6 +102,26 @@
 
   .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:30px 0;}
   .toast{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--danger); color:#fff; padding:8px 16px; border-radius:8px; font-size:12.5px; display:none;}
+
+  .ko-list{display:flex; flex-direction:column; gap:10px;}
+  .ko-card{background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px;}
+  .ko-tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; border-radius:6px; padding:2px 7px; display:inline-block; margin-bottom:8px;}
+  .ko-tag.pending{color:var(--text-dim); background:var(--bg-elev-2);}
+  .ko-tag.live{color:var(--warn); background:var(--warn-dim);}
+  .ko-tag.done{color:var(--accent); background:var(--accent-dim);}
+  .ko-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .ko-players{display:flex; flex-direction:column; gap:4px; flex:1 1 220px; min-width:0;}
+  .ko-player{display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:var(--text-dim); min-width:0;}
+  .ko-player .pname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ko-player .pgroup{font-size:10.5px; color:var(--text-dim); font-weight:400; flex:0 0 auto;}
+  .ko-player.winner{color:var(--text);}
+  .ko-player.winner .pname{font-weight:700;}
+  .ko-sets{font-size:11px; color:var(--text-dim); font-weight:600; flex:0 0 auto; white-space:nowrap;}
+  .modal-sets{display:flex; flex-direction:column; gap:10px; margin-bottom:12px;}
+  .modal-set-row{display:flex; align-items:center; gap:10px;}
+  .modal-set-row .set-label{font-size:11.5px; color:var(--text-dim); width:84px; flex:0 0 auto;}
+  .modal-set-row .modal-score{width:54px; font-size:17px;}
+  .ko-note{font-size:11px; color:var(--text-dim); margin:-2px 0 2px;}
 </style>
 </head>
 <body>
@@ -111,7 +131,7 @@
 <script>
 (function(){
   var ROUNDS = [[1,4],[2,3],[1,3],[2,4],[1,2],[3,4]];
-  var state = { groups: {}, order: [], selected: null, tab: "grupos", loaded: false, modal: null };
+  var state = { groups: {}, order: [], selected: null, tab: "grupos", loaded: false, modal: null, knockout: [], koModal: null };
 
   function openModal(groupId, idx){
     state.modal = { groupId: groupId, idx: idx };
@@ -119,6 +139,14 @@
   }
   function closeModal(){
     state.modal = null;
+    render();
+  }
+  function openKoModal(idx){
+    state.koModal = { idx: idx };
+    render();
+  }
+  function closeKoModal(){
+    state.koModal = null;
     render();
   }
 
@@ -154,6 +182,37 @@
     if(a===null||b===null||a===undefined||b===undefined) return false;
     var hi=Math.max(a,b), lo=Math.min(a,b);
     return hi===7 && lo===6;
+  }
+
+  // ---- Fase eliminatória (mata-mata): 2 sets, com tie-break de 10 pontos
+  // (diferença mínima de 2) decidindo o jogo se ficar 1x1 nos sets.
+  function koSetsWon(m){
+    var a = 0, b = 0;
+    (m.sets||[]).forEach(function(s){
+      if(s.a===null || s.a===undefined || s.b===null || s.b===undefined) return;
+      if(s.a > s.b) a++; else if(s.b > s.a) b++;
+    });
+    return [a,b];
+  }
+  function koStatus(m){
+    var played = (m.sets||[]).filter(function(s){ return s.a!==null && s.a!==undefined && s.b!==null && s.b!==undefined; }).length;
+    if(played===0) return "pending";
+    if(koWinner(m)) return "done";
+    return "live";
+  }
+  function koWinner(m){
+    var w = koSetsWon(m);
+    if(w[0]>=2) return "A";
+    if(w[1]>=2) return "B";
+    if(w[0]===1 && w[1]===1 && m.tiebreak && m.tiebreak.a!==null && m.tiebreak.b!==null && m.tiebreak.a!==undefined && m.tiebreak.b!==undefined){
+      if(m.tiebreak.a > m.tiebreak.b) return "A";
+      if(m.tiebreak.b > m.tiebreak.a) return "B";
+    }
+    return null;
+  }
+  function koNeedsTiebreak(m){
+    var w = koSetsWon(m);
+    return w[0]===1 && w[1]===1;
   }
 
   function standingsFor(group){
@@ -207,6 +266,16 @@
       return r.json();
     });
   }
+  function apiSaveKnockout(idx, sets, tiebreak, reset){
+    return fetch("/api/knockout/matches/" + idx, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ sets: sets, tiebreak: tiebreak, reset: !!reset })
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(e){ throw new Error(e.error || "erro ao salvar"); });
+      return r.json();
+    });
+  }
 
   function loadData(){
     return apiGet().then(function(data){
@@ -219,6 +288,7 @@
       });
       state.order.sort(function(a,b){ return parseInt(a,10) - parseInt(b,10); });
       if(state.selected === null && state.order.length) state.selected = state.order[0];
+      state.knockout = data.knockout || [];
       state.loaded = true;
       render();
     }).catch(function(e){
@@ -232,6 +302,15 @@
     apiSave(groupId, idx, scoreA, scoreB, cancelled, reset).then(function(resp){
       state.groups[groupId] = resp.group;
       state.modal = null;
+      render();
+    }).catch(function(e){
+      showToast(e.message || "Erro ao salvar resultado");
+    });
+  }
+  function saveKnockout(idx, sets, tiebreak, reset){
+    apiSaveKnockout(idx, sets, tiebreak, reset).then(function(resp){
+      state.knockout[idx] = resp.match;
+      state.koModal = null;
       render();
     }).catch(function(e){
       showToast(e.message || "Erro ao salvar resultado");
@@ -262,7 +341,8 @@
 
     var tabs = el("nav", {class:"tabs"}, [
       el("button", {class: state.tab==="grupos" ? "active":"", onclick:function(){ state.tab="grupos"; render(); }}, [txt("Grupos")]),
-      el("button", {class: state.tab==="visao" ? "active":"", onclick:function(){ state.tab="visao"; render(); }}, [txt("Visão Geral")])
+      el("button", {class: state.tab==="visao" ? "active":"", onclick:function(){ state.tab="visao"; render(); }}, [txt("Visão Geral")]),
+      el("button", {class: state.tab==="mata-mata" ? "active":"", onclick:function(){ state.tab="mata-mata"; render(); }}, [txt("Fase Eliminatória")])
     ]);
     app.appendChild(tabs);
 
@@ -277,11 +357,14 @@
 
     if(state.tab === "grupos"){
       renderGruposTab(app);
+    } else if(state.tab === "mata-mata"){
+      renderKnockoutTab(app);
     } else {
       renderVisaoTab(app);
     }
 
     renderModal(app);
+    renderKoModal(app);
   }
 
   function renderModal(app){
@@ -478,6 +561,183 @@
       grid.appendChild(card);
     });
     app.appendChild(grid);
+  }
+
+  function renderKnockoutTab(app){
+    app.appendChild(el("div", {class:"rules-note"}, [txt(
+      "Fase eliminatória: cada confronto vale 2 sets. Se ficar 1x1 nos sets, decide no tie-break de 10 pontos (precisa vencer por 2 de diferença — 10x8, 11x9, e assim por diante). Quem ganha avança de fase."
+    )]));
+
+    if(!state.knockout || !state.knockout.length){
+      app.appendChild(el("div", {class:"empty"}, [txt("Fase eliminatória ainda não disponível.")]));
+      return;
+    }
+
+    var card = el("div", {class:"card"});
+    card.appendChild(el("h2", {}, [txt("Confrontos")]));
+    var list = el("div", {class:"ko-list"});
+
+    state.knockout.forEach(function(m, idx){
+      var status = koStatus(m);
+      var winner = koWinner(m);
+      var w = koSetsWon(m);
+
+      var tagClass = status === "done" ? "done" : (status === "live" ? "live" : "pending");
+      var tagText = status === "done" ? "Finalizado" : (status === "live" ? "Em andamento" : "Não iniciado");
+
+      var kcard = el("div", {class:"ko-card"});
+      kcard.appendChild(el("span", {class:"ko-tag " + tagClass}, [txt(tagText)]));
+
+      var row = el("div", {class:"ko-row"});
+      var players = el("div", {class:"ko-players"}, [
+        el("div", {class:"ko-player" + (winner==="A"?" winner":"")}, [
+          el("span", {class:"pname"}, [txt(m.playerA)]),
+          el("span", {class:"pgroup"}, [txt("Grupo " + m.groupA + " (" + m.posA + "º)")])
+        ]),
+        el("div", {class:"ko-player" + (winner==="B"?" winner":"")}, [
+          el("span", {class:"pname"}, [txt(m.playerB)]),
+          el("span", {class:"pgroup"}, [txt("Grupo " + m.groupB + " (" + m.posB + "º)")])
+        ])
+      ]);
+      row.appendChild(players);
+
+      if(status !== "pending"){
+        var setsTxt = w[0] + " – " + w[1];
+        if(m.tiebreak && m.tiebreak.a!==null && m.tiebreak.a!==undefined){
+          setsTxt += " (TB " + m.tiebreak.a + "-" + m.tiebreak.b + ")";
+        }
+        row.appendChild(el("div", {class:"ko-sets"}, [txt("Sets: " + setsTxt)]));
+      }
+
+      row.appendChild(el("button", {class:"edit-btn", onclick:(function(i){ return function(){ openKoModal(i); }; })(idx)}, [
+        txt(status === "pending" ? "Lançar resultado" : "Editar")
+      ]));
+
+      kcard.appendChild(row);
+      list.appendChild(kcard);
+    });
+
+    card.appendChild(list);
+    app.appendChild(card);
+  }
+
+  function renderKoModal(app){
+    if(!state.koModal) return;
+    var idx = state.koModal.idx;
+    var m = state.knockout[idx];
+    if(!m){ state.koModal = null; return; }
+
+    var overlay = el("div", {class:"modal-overlay", onclick:function(e){ if(e.target === overlay) closeKoModal(); }});
+    var box = el("div", {class:"modal-box"});
+
+    box.appendChild(el("div", {class:"modal-header"}, [
+      el("h3", {}, [txt("Resultado — Mata-mata")]),
+      el("button", {class:"modal-x", onclick:function(){ closeKoModal(); }}, [txt("×")])
+    ]));
+
+    box.appendChild(el("div", {class:"modal-players"}, [
+      el("b", {}, [txt(m.playerA)]),
+      el("span", {class:"vs"}, [txt("vs")]),
+      el("b", {}, [txt(m.playerB)])
+    ]));
+
+    var sets = el("div", {class:"modal-sets"});
+
+    function setRow(label, s){
+      var inA = el("input", {class:"modal-score", type:"number", min:"0", value: s.a===null||s.a===undefined?"":s.a});
+      var inB = el("input", {class:"modal-score", type:"number", min:"0", value: s.b===null||s.b===undefined?"":s.b});
+      var r = el("div", {class:"modal-set-row"}, [
+        el("span", {class:"set-label"}, [txt(label)]),
+        inA, el("span",{class:"dash"},[txt("—")]), inB
+      ]);
+      return { row:r, inA:inA, inB:inB };
+    }
+
+    var set1 = setRow("Set 1", m.sets && m.sets[0] ? m.sets[0] : {a:null,b:null});
+    var set2 = setRow("Set 2", m.sets && m.sets[1] ? m.sets[1] : {a:null,b:null});
+    sets.appendChild(set1.row);
+    sets.appendChild(set2.row);
+
+    var tbWrap = el("div", {});
+    var tbNote = el("div", {class:"ko-note"}, [txt("Tie-break (só preencher se ficar 1x1 nos sets — mínimo 10 pontos, vencer por 2)")]);
+    var tb = setRow("Tie-break", m.tiebreak || {a:null,b:null});
+    tbWrap.appendChild(tbNote);
+    tbWrap.appendChild(tb.row);
+    sets.appendChild(tbWrap);
+
+    box.appendChild(sets);
+
+    var preview = el("div", {class:"modal-preview"});
+    var saveBtn = el("button", {class:"btn-primary"}, [txt("Salvar")]);
+
+    function currentSets(){
+      var a0 = set1.inA.value===""?null:parseInt(set1.inA.value,10);
+      var b0 = set1.inB.value===""?null:parseInt(set1.inB.value,10);
+      var a1 = set2.inA.value===""?null:parseInt(set2.inA.value,10);
+      var b1 = set2.inB.value===""?null:parseInt(set2.inB.value,10);
+      return [{a:a0,b:b0},{a:a1,b:b1}];
+    }
+    function currentTiebreak(){
+      var ta = tb.inA.value===""?null:parseInt(tb.inA.value,10);
+      var tbv = tb.inB.value===""?null:parseInt(tb.inB.value,10);
+      return {a:ta, b:tbv};
+    }
+    function setValid(s){
+      return s.a!==null && s.b!==null && !isNaN(s.a) && !isNaN(s.b) && s.a>=0 && s.b>=0 && s.a!==s.b;
+    }
+    function tbValid(t){
+      if(t.a===null || t.b===null || isNaN(t.a) || isNaN(t.b)) return false;
+      if(t.a<0 || t.b<0 || t.a===t.b) return false;
+      return Math.max(t.a,t.b)>=10 && Math.abs(t.a-t.b)>=2;
+    }
+
+    function refresh(){
+      var s = currentSets();
+      var t = currentTiebreak();
+      preview.innerHTML = "";
+      var s0ok = setValid(s[0]), s1ok = setValid(s[1]);
+      var valid = s0ok && s1ok;
+      var wA = (s0ok && s[0].a>s[0].b?1:0) + (s1ok && s[1].a>s[1].b?1:0);
+      var wB = (s0ok && s[0].b>s[0].a?1:0) + (s1ok && s[1].b>s[1].a?1:0);
+      var needsTb = valid && wA===1 && wB===1;
+      if(needsTb){
+        valid = tbValid(t);
+      }
+      if(s0ok && s1ok){
+        var txtMsg = m.playerA + " " + wA + " x " + wB + " " + m.playerB;
+        if(needsTb){
+          txtMsg += tbValid(t) ? (" | Tie-break: " + t.a + "-" + t.b) : " | falta o tie-break";
+        }
+        preview.appendChild(el("span", {}, [txt(txtMsg)]));
+      }
+      saveBtn.disabled = !valid;
+    }
+    [set1.inA,set1.inB,set2.inA,set2.inB,tb.inA,tb.inB].forEach(function(inp){
+      inp.addEventListener("input", refresh);
+    });
+
+    saveBtn.onclick = function(){
+      var s = currentSets();
+      var t = currentTiebreak();
+      if(!setValid(s[0]) || !setValid(s[1])) return;
+      var wA = (s[0].a>s[0].b?1:0) + (s[1].a>s[1].b?1:0);
+      var wB = (s[0].b>s[0].a?1:0) + (s[1].b>s[1].a?1:0);
+      var needsTb = wA===1 && wB===1;
+      if(needsTb && !tbValid(t)) return;
+      saveKnockout(idx, s, needsTb ? t : {a:null,b:null}, false);
+    };
+
+    box.appendChild(preview);
+
+    var clearBtn = el("button", {class:"btn-secondary", onclick:function(){
+      saveKnockout(idx, null, null, true);
+    }}, [txt("Limpar")]);
+    var closeBtn = el("button", {class:"btn-secondary", onclick:function(){ closeKoModal(); }}, [txt("Fechar")]);
+    box.appendChild(el("div", {class:"modal-actions"}, [clearBtn, closeBtn, saveBtn]));
+
+    refresh();
+    overlay.appendChild(box);
+    app.appendChild(overlay);
   }
 
   render();
