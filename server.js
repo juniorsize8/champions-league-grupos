@@ -168,8 +168,8 @@ const KO_SEED = [
   { groupA: 11, posA: 1, playerA: "Joao Lima",         groupB: 15, posB: 2, playerB: "Fred" },
   { groupA: 15, posA: 1, playerA: "Junior",             groupB: 11, posB: 2, playerB: "Silvio Veloso" },
 
-  { groupA: 12, posA: 1, playerA: "Rodrigo",           groupB: 7,  posB: 2, playerB: "Marcio Adri" },
-  { groupA: 7,  posA: 1, playerA: "Jonas Suzuki",       groupB: 12, posB: 2, playerB: "Kerr Ruic" },
+  { groupA: 12, posA: 1, playerA: "Rodrigo Ruic",      groupB: 7,  posB: 2, playerB: "Marcio Adri" },
+  { groupA: 7,  posA: 1, playerA: "Jonas Suzuki",       groupB: 12, posB: 2, playerB: "Kerr" },
 ];
 
 function emptySets() {
