@@ -103,20 +103,30 @@
   .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:30px 0;}
   .toast{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--danger); color:#fff; padding:8px 16px; border-radius:8px; font-size:12.5px; display:none;}
 
-  .ko-list{display:flex; flex-direction:column; gap:10px;}
-  .ko-card{background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px;}
-  .ko-tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; border-radius:6px; padding:2px 7px; display:inline-block; margin-bottom:8px;}
+  .ko-confrontos{display:flex; flex-direction:column; gap:16px;}
+  .ko-confronto{background:var(--bg-elev); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.08);}
+  .ko-confronto-head{display:flex; align-items:center; gap:10px; padding:10px 14px; background:linear-gradient(135deg, var(--accent-dim), var(--bg-elev-2)); border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .ko-confronto-head .num{font-size:10.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:#fff; background:var(--accent); border-radius:999px; padding:3px 10px; flex:0 0 auto;}
+  .ko-confronto-head .vs-groups{font-size:14px; font-weight:700; color:var(--text);}
+  .ko-confronto-body{display:flex; flex-direction:column;}
+  .ko-confronto-body .ko-match + .ko-match{border-top:1px dashed var(--border);}
+  .ko-match{padding:12px 14px; display:flex; flex-direction:column; gap:8px;}
+  .ko-tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; border-radius:6px; padding:2px 7px; display:inline-block; align-self:flex-start;}
   .ko-tag.pending{color:var(--text-dim); background:var(--bg-elev-2);}
   .ko-tag.live{color:var(--warn); background:var(--warn-dim);}
   .ko-tag.done{color:var(--accent); background:var(--accent-dim);}
-  .ko-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
-  .ko-players{display:flex; flex-direction:column; gap:4px; flex:1 1 220px; min-width:0;}
-  .ko-player{display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:var(--text-dim); min-width:0;}
-  .ko-player .pname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .ko-player .pgroup{font-size:10.5px; color:var(--text-dim); font-weight:400; flex:0 0 auto;}
-  .ko-player.winner{color:var(--text);}
-  .ko-player.winner .pname{font-weight:700;}
+  .ko-players-row{display:flex; align-items:center; gap:10px;}
+  .ko-p{display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:var(--text-dim); min-width:0; flex:1 1 0;}
+  .ko-p.right{flex-direction:row-reverse; justify-content:flex-start; text-align:right;}
+  .ko-p-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ko-p-badge{font-size:10px; color:var(--text-dim); font-weight:700; background:var(--bg-elev-2); border-radius:6px; padding:1px 6px; flex:0 0 auto;}
+  .ko-p.winner{color:var(--text);}
+  .ko-p.winner .ko-p-name{font-weight:800;}
+  .ko-p.winner .ko-p-badge{color:var(--accent); background:var(--accent-dim);}
+  .ko-vs-mid{font-size:10.5px; color:var(--text-dim); font-weight:700; flex:0 0 auto; text-transform:uppercase; letter-spacing:.03em;}
+  .ko-match-bottom{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
   .ko-sets{font-size:11px; color:var(--text-dim); font-weight:600; flex:0 0 auto; white-space:nowrap;}
+  .ko-sets-empty{font-style:italic; opacity:.7;}
   .modal-sets{display:flex; flex-direction:column; gap:10px; margin-bottom:12px;}
   .modal-set-row{display:flex; align-items:center; gap:10px;}
   .modal-set-row .set-label{font-size:11.5px; color:var(--text-dim); width:84px; flex:0 0 auto;}
@@ -563,6 +573,48 @@
     app.appendChild(grid);
   }
 
+  function renderKoMatchCard(m, idx){
+    var status = koStatus(m);
+    var winner = koWinner(m);
+    var w = koSetsWon(m);
+
+    var tagClass = status === "done" ? "done" : (status === "live" ? "live" : "pending");
+    var tagText = status === "done" ? "Finalizado" : (status === "live" ? "Em andamento" : "Não iniciado");
+
+    var mcard = el("div", {class:"ko-match"});
+    mcard.appendChild(el("span", {class:"ko-tag " + tagClass}, [txt(tagText)]));
+
+    var prow = el("div", {class:"ko-players-row"}, [
+      el("div", {class:"ko-p" + (winner==="A"?" winner":"")}, [
+        el("span", {class:"ko-p-badge"}, [txt("G" + m.groupA + " · " + m.posA + "º")]),
+        el("span", {class:"ko-p-name"}, [txt(m.playerA)])
+      ]),
+      el("span", {class:"ko-vs-mid"}, [txt("vs")]),
+      el("div", {class:"ko-p right" + (winner==="B"?" winner":"")}, [
+        el("span", {class:"ko-p-name"}, [txt(m.playerB)]),
+        el("span", {class:"ko-p-badge"}, [txt("G" + m.groupB + " · " + m.posB + "º")])
+      ])
+    ]);
+    mcard.appendChild(prow);
+
+    var bottom = el("div", {class:"ko-match-bottom"});
+    if(status !== "pending"){
+      var setsTxt = w[0] + " – " + w[1];
+      if(m.tiebreak && m.tiebreak.a!==null && m.tiebreak.a!==undefined){
+        setsTxt += " (TB " + m.tiebreak.a + "-" + m.tiebreak.b + ")";
+      }
+      bottom.appendChild(el("div", {class:"ko-sets"}, [txt("Sets: " + setsTxt)]));
+    } else {
+      bottom.appendChild(el("div", {class:"ko-sets ko-sets-empty"}, [txt("Resultado pendente")]));
+    }
+    bottom.appendChild(el("button", {class:"edit-btn", onclick:(function(i){ return function(){ openKoModal(i); }; })(idx)}, [
+      txt(status === "pending" ? "Lançar resultado" : "Editar")
+    ]));
+    mcard.appendChild(bottom);
+
+    return mcard;
+  }
+
   function renderKnockoutTab(app){
     app.appendChild(el("div", {class:"rules-note"}, [txt(
       "Fase eliminatória: cada confronto vale 2 sets. Se ficar 1x1 nos sets, decide no tie-break de 10 pontos (precisa vencer por 2 de diferença — 10x8, 11x9, e assim por diante). Quem ganha avança de fase."
@@ -573,52 +625,30 @@
       return;
     }
 
-    var card = el("div", {class:"card"});
-    card.appendChild(el("h2", {}, [txt("Confrontos")]));
-    var list = el("div", {class:"ko-list"});
+    var wrap = el("div", {class:"ko-confrontos"});
 
-    state.knockout.forEach(function(m, idx){
-      var status = koStatus(m);
-      var winner = koWinner(m);
-      var w = koSetsWon(m);
+    for(var i = 0; i < state.knockout.length; i += 2){
+      var m1 = state.knockout[i];
+      var m2 = state.knockout[i+1];
+      var confrontoNum = (i/2) + 1;
 
-      var tagClass = status === "done" ? "done" : (status === "live" ? "live" : "pending");
-      var tagText = status === "done" ? "Finalizado" : (status === "live" ? "Em andamento" : "Não iniciado");
+      var section = el("div", {class:"ko-confronto"});
 
-      var kcard = el("div", {class:"ko-card"});
-      kcard.appendChild(el("span", {class:"ko-tag " + tagClass}, [txt(tagText)]));
-
-      var row = el("div", {class:"ko-row"});
-      var players = el("div", {class:"ko-players"}, [
-        el("div", {class:"ko-player" + (winner==="A"?" winner":"")}, [
-          el("span", {class:"pname"}, [txt(m.playerA)]),
-          el("span", {class:"pgroup"}, [txt("Grupo " + m.groupA + " (" + m.posA + "º)")])
-        ]),
-        el("div", {class:"ko-player" + (winner==="B"?" winner":"")}, [
-          el("span", {class:"pname"}, [txt(m.playerB)]),
-          el("span", {class:"pgroup"}, [txt("Grupo " + m.groupB + " (" + m.posB + "º)")])
-        ])
+      var head = el("div", {class:"ko-confronto-head"}, [
+        el("span", {class:"num"}, [txt("Confronto " + confrontoNum)]),
+        el("span", {class:"vs-groups"}, [txt("Grupo " + m1.groupA + " × Grupo " + m1.groupB)])
       ]);
-      row.appendChild(players);
+      section.appendChild(head);
 
-      if(status !== "pending"){
-        var setsTxt = w[0] + " – " + w[1];
-        if(m.tiebreak && m.tiebreak.a!==null && m.tiebreak.a!==undefined){
-          setsTxt += " (TB " + m.tiebreak.a + "-" + m.tiebreak.b + ")";
-        }
-        row.appendChild(el("div", {class:"ko-sets"}, [txt("Sets: " + setsTxt)]));
-      }
+      var body = el("div", {class:"ko-confronto-body"});
+      body.appendChild(renderKoMatchCard(m1, i));
+      if(m2){ body.appendChild(renderKoMatchCard(m2, i+1)); }
+      section.appendChild(body);
 
-      row.appendChild(el("button", {class:"edit-btn", onclick:(function(i){ return function(){ openKoModal(i); }; })(idx)}, [
-        txt(status === "pending" ? "Lançar resultado" : "Editar")
-      ]));
+      wrap.appendChild(section);
+    }
 
-      kcard.appendChild(row);
-      list.appendChild(kcard);
-    });
-
-    card.appendChild(list);
-    app.appendChild(card);
+    app.appendChild(wrap);
   }
 
   function renderKoModal(app){
