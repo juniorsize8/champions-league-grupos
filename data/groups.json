@@ -848,5 +848,375 @@
         }
       ]
     }
+  ],
+  "knockout": [
+    {
+      "idx": 0,
+      "groupA": 5,
+      "posA": 1,
+      "playerA": "Arthur",
+      "groupB": 9,
+      "posB": 2,
+      "playerB": "Joel",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 1,
+      "groupA": 9,
+      "posA": 1,
+      "playerA": "Davi",
+      "groupB": 5,
+      "posB": 2,
+      "playerB": "Diego",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 2,
+      "groupA": 10,
+      "posA": 1,
+      "playerA": "Basile",
+      "groupB": 6,
+      "posB": 2,
+      "playerB": "Cassio",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 3,
+      "groupA": 6,
+      "posA": 1,
+      "playerA": "Felipe",
+      "groupB": 10,
+      "posB": 2,
+      "playerB": "Yuri",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 4,
+      "groupA": 4,
+      "posA": 1,
+      "playerA": "Murilo",
+      "groupB": 13,
+      "posB": 2,
+      "playerB": "Lelo",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 5,
+      "groupA": 13,
+      "posA": 1,
+      "playerA": "Marquinhos Ashcar",
+      "groupB": 4,
+      "posB": 2,
+      "playerB": "Oscar",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 6,
+      "groupA": 2,
+      "posA": 1,
+      "playerA": "Paulo Schroeder",
+      "groupB": 1,
+      "posB": 2,
+      "playerB": "Paulo Yukio",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 7,
+      "groupA": 1,
+      "posA": 1,
+      "playerA": "Rodrigo Arthur",
+      "groupB": 2,
+      "posB": 2,
+      "playerB": "Gustavo Monzani",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 8,
+      "groupA": 8,
+      "posA": 1,
+      "playerA": "Guga Clark",
+      "groupB": 14,
+      "posB": 2,
+      "playerB": "Beto Terzian",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 9,
+      "groupA": 14,
+      "posA": 1,
+      "playerA": "Will",
+      "groupB": 8,
+      "posB": 2,
+      "playerB": "Gustavo Toledo",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 10,
+      "groupA": 3,
+      "posA": 1,
+      "playerA": "Pa",
+      "groupB": 16,
+      "posB": 2,
+      "playerB": "Fabio Lacaz",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 11,
+      "groupA": 16,
+      "posA": 1,
+      "playerA": "Bruno Affonso",
+      "groupB": 3,
+      "posB": 2,
+      "playerB": "Romulo",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 12,
+      "groupA": 11,
+      "posA": 1,
+      "playerA": "Joao Lima",
+      "groupB": 15,
+      "posB": 2,
+      "playerB": "Fred",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 13,
+      "groupA": 15,
+      "posA": 1,
+      "playerA": "Junior",
+      "groupB": 11,
+      "posB": 2,
+      "playerB": "Silvio Veloso",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 14,
+      "groupA": 12,
+      "posA": 1,
+      "playerA": "Rodrigo",
+      "groupB": 7,
+      "posB": 2,
+      "playerB": "Marcio Adri",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 15,
+      "groupA": 7,
+      "posA": 1,
+      "playerA": "Jonas Suzuki",
+      "groupB": 12,
+      "posB": 2,
+      "playerB": "Kerr Ruic",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    }
   ]
 }
