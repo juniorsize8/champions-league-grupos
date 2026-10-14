@@ -142,6 +142,62 @@ function persistToGithub(contentStr) {
 }
 // ---------------------------------------------------------------------------
 
+// ---- Fase eliminatória (mata-mata) ----------------------------------------
+// Cruzamento definido manualmente a partir da classificação final dos grupos
+// (já considerando desistências ajustadas pelo organizador): 1º de um grupo
+// enfrenta o 2º do grupo cruzado, e vice-versa.
+const KO_SEED = [
+  { groupA: 5,  posA: 1, playerA: "Arthur",            groupB: 9,  posB: 2, playerB: "Joel" },
+  { groupA: 9,  posA: 1, playerA: "Davi",              groupB: 5,  posB: 2, playerB: "Diego" },
+
+  { groupA: 10, posA: 1, playerA: "Basile",            groupB: 6,  posB: 2, playerB: "Cassio" },
+  { groupA: 6,  posA: 1, playerA: "Felipe",             groupB: 10, posB: 2, playerB: "Yuri" },
+
+  { groupA: 4,  posA: 1, playerA: "Murilo",            groupB: 13, posB: 2, playerB: "Lelo" },
+  { groupA: 13, posA: 1, playerA: "Marquinhos Ashcar",  groupB: 4,  posB: 2, playerB: "Oscar" },
+
+  { groupA: 2,  posA: 1, playerA: "Paulo Schroeder",   groupB: 1,  posB: 2, playerB: "Paulo Yukio" },
+  { groupA: 1,  posA: 1, playerA: "Rodrigo Arthur",     groupB: 2,  posB: 2, playerB: "Gustavo Monzani" },
+
+  { groupA: 8,  posA: 1, playerA: "Guga Clark",        groupB: 14, posB: 2, playerB: "Beto Terzian" },
+  { groupA: 14, posA: 1, playerA: "Will",               groupB: 8,  posB: 2, playerB: "Gustavo Toledo" },
+
+  { groupA: 3,  posA: 1, playerA: "Pa",                groupB: 16, posB: 2, playerB: "Fabio Lacaz" },
+  { groupA: 16, posA: 1, playerA: "Bruno Affonso",      groupB: 3,  posB: 2, playerB: "Romulo" },
+
+  { groupA: 11, posA: 1, playerA: "Joao Lima",         groupB: 15, posB: 2, playerB: "Fred" },
+  { groupA: 15, posA: 1, playerA: "Junior",             groupB: 11, posB: 2, playerB: "Silvio Veloso" },
+
+  { groupA: 12, posA: 1, playerA: "Rodrigo",           groupB: 7,  posB: 2, playerB: "Marcio Adri" },
+  { groupA: 7,  posA: 1, playerA: "Jonas Suzuki",       groupB: 12, posB: 2, playerB: "Kerr Ruic" },
+];
+
+function emptySets() {
+  return [{ a: null, b: null }, { a: null, b: null }];
+}
+
+function buildKnockoutSeed() {
+  return KO_SEED.map(function (m, idx) {
+    return {
+      idx: idx,
+      groupA: m.groupA, posA: m.posA, playerA: m.playerA,
+      groupB: m.groupB, posB: m.posB, playerB: m.playerB,
+      sets: emptySets(),
+      tiebreak: { a: null, b: null },
+    };
+  });
+}
+
+function isValidSetScore(a, b) {
+  return Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b >= 0 && a !== b;
+}
+function isValidTiebreak(a, b) {
+  if (a === null || b === null) return false;
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a === b) return false;
+  return Math.max(a, b) >= 10 && Math.abs(a - b) >= 2;
+}
+// ---------------------------------------------------------------------------
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -157,7 +213,22 @@ function writeData(data) {
 // Garante que o arquivo de dados existe (primeira execução em disco novo)
 if (!fs.existsSync(DATA_FILE)) {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify({ groups: [] }, null, 2));
+  fs.writeFileSync(DATA_FILE, JSON.stringify({ groups: [], knockout: buildKnockoutSeed() }, null, 2));
+}
+
+// Garante que a fase eliminatória existe no arquivo de dados (migração de
+// instalações antigas que só tinham "groups"), e grava/persiste se precisou criar.
+function ensureKnockoutSeeded() {
+  try {
+    const data = readData();
+    if (!data.knockout || !Array.isArray(data.knockout) || data.knockout.length === 0) {
+      data.knockout = buildKnockoutSeed();
+      writeData(data);
+      console.log("[knockout] Fase eliminatória criada/semeada.");
+    }
+  } catch (e) {
+    console.error("[knockout] Falha ao garantir fase eliminatória:", e.message);
+  }
 }
 
 app.get("/api/groups", (req, res) => {
@@ -210,7 +281,57 @@ app.post("/api/groups/:id/matches/:idx", (req, res) => {
   res.json({ ok: true, group });
 });
 
+app.post("/api/knockout/matches/:idx", (req, res) => {
+  const { idx } = req.params;
+  const { sets, tiebreak, reset } = req.body || {};
+  const i = parseInt(idx, 10);
+
+  const data = readData();
+  if (!data.knockout || !data.knockout[i]) {
+    return res.status(404).json({ error: "knockout match not found" });
+  }
+  const m = data.knockout[i];
+
+  if (reset) {
+    m.sets = emptySets();
+    m.tiebreak = { a: null, b: null };
+    writeData(data);
+    return res.json({ ok: true, match: m });
+  }
+
+  if (!Array.isArray(sets) || sets.length !== 2) {
+    return res.status(400).json({ error: "invalid sets" });
+  }
+  const s0a = parseInt(sets[0] && sets[0].a, 10);
+  const s0b = parseInt(sets[0] && sets[0].b, 10);
+  const s1a = parseInt(sets[1] && sets[1].a, 10);
+  const s1b = parseInt(sets[1] && sets[1].b, 10);
+  if (!isValidSetScore(s0a, s0b) || !isValidSetScore(s1a, s1b)) {
+    return res.status(400).json({ error: "invalid set score" });
+  }
+
+  const aWins = (s0a > s0b ? 1 : 0) + (s1a > s1b ? 1 : 0);
+  const bWins = (s0b > s0a ? 1 : 0) + (s1b > s1a ? 1 : 0);
+
+  let tb = { a: null, b: null };
+  if (aWins === 1 && bWins === 1) {
+    const ta = parseInt(tiebreak && tiebreak.a, 10);
+    const tbv = parseInt(tiebreak && tiebreak.b, 10);
+    if (!isValidTiebreak(ta, tbv)) {
+      return res.status(400).json({ error: "invalid tiebreak" });
+    }
+    tb = { a: ta, b: tbv };
+  }
+
+  m.sets = [{ a: s0a, b: s0b }, { a: s1a, b: s1b }];
+  m.tiebreak = tb;
+
+  writeData(data);
+  res.json({ ok: true, match: m });
+});
+
 const PORT = process.env.PORT || 3000;
 loadFromGithubIfConfigured().finally(() => {
-    app.listen(PORT, () => console.log("Champions League server running on port " + PORT));
-  });
+  ensureKnockoutSeeded();
+  app.listen(PORT, () => console.log("Champions League server running on port " + PORT));
+});
