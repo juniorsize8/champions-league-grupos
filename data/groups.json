@@ -1136,12 +1136,12 @@
       "playerB": "Fred",
       "sets": [
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 1
         },
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 3
         }
       ],
       "tiebreak": {
