@@ -598,7 +598,7 @@
     var isOpen = !!(state.koOpen && state.koOpen[idx]);
 
     var midNode = hasResult
-      ? el("span", {class:"ko-score-mid"}, [txt(w[0] + " x " + w[1])])
+      ? el("span", {class:"ko-score-mid"}, [txt((w[0] + (winner==="A" && w[0]===w[1] ? 1 : 0)) + " x " + (w[1] + (winner==="B" && w[0]===w[1] ? 1 : 0)))])
       : el("span", {class:"ko-vs-mid"}, [txt("vs")]);
 
     var prow = el("div", {class:"ko-players-row" + (hasResult ? " clickable" : "")}, [
