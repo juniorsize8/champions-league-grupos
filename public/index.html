@@ -300,6 +300,8 @@
       if(state.selected === null && state.order.length) state.selected = state.order[0];
       state.knockout = data.knockout || [];
       state.loaded = true;
+      // não redesenha enquanto um popup de lançamento está aberto (senão apaga o que está sendo digitado)
+      if(state.modal || state.koModal) return;
       render();
     }).catch(function(e){
       console.error(e);
