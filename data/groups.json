@@ -998,12 +998,12 @@
       "playerB": "Paulo Yukio",
       "sets": [
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 4
         },
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 4
         }
       ],
       "tiebreak": {
