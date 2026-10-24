@@ -1044,12 +1044,12 @@
       "playerB": "Beto Terzian",
       "sets": [
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 0
         },
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 0
         }
       ],
       "tiebreak": {
