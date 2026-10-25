@@ -139,6 +139,12 @@
   .modal-set-row{display:flex; align-items:center; gap:10px;}
   .modal-set-row .set-label{font-size:11.5px; color:var(--text-dim); width:84px; flex:0 0 auto;}
   .modal-set-row .modal-score{width:54px; font-size:17px;}
+  .draw-box{display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; background:linear-gradient(135deg, var(--accent-dim), var(--bg-elev-2)); border:1px solid var(--border); border-radius:14px; padding:28px 16px;}
+  .draw-title{font-size:17px; font-weight:800; color:var(--text);}
+  .draw-sub{font-size:12.5px; color:var(--text-dim);}
+  .draw-btn{margin-top:6px; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:12px 26px; font-size:15px; font-weight:800; cursor:pointer;}
+  .draw-btn:disabled{opacity:.45; cursor:not-allowed;}
+  .draw-redo{display:flex; justify-content:center; margin-top:14px;}
   .ko-note{font-size:11px; color:var(--text-dim); margin:-2px 0 2px;}
 </style>
 </head>
@@ -149,7 +155,7 @@
 <script>
 (function(){
   var ROUNDS = [[1,4],[2,3],[1,3],[2,4],[1,2],[3,4]];
-  var state = { groups: {}, order: [], selected: null, tab: "mata-mata", loaded: false, modal: null, knockout: [], koModal: null, koOpen: {} };
+  var state = { groups: {}, order: [], selected: null, tab: "mata-mata", loaded: false, modal: null, knockout: [], oitavas: null, koModal: null, koOpen: {}, tabSet: false, drawing: false };
 
   function openModal(groupId, idx){
     state.modal = { groupId: groupId, idx: idx };
@@ -159,8 +165,11 @@
     state.modal = null;
     render();
   }
-  function openKoModal(idx){
-    state.koModal = { idx: idx };
+  function koList(round){
+    return round === "oitavas" ? (state.oitavas || []) : (state.knockout || []);
+  }
+  function openKoModal(idx, round){
+    state.koModal = { idx: idx, round: round || "ko" };
     render();
   }
   function closeKoModal(){
@@ -228,6 +237,9 @@
     }
     return null;
   }
+  function koAllDone(){
+    return !!(state.knockout && state.knockout.length) && state.knockout.every(function(m){ return !!koWinner(m); });
+  }
   function koNeedsTiebreak(m){
     var w = koSetsWon(m);
     return w[0]===1 && w[1]===1;
@@ -284,8 +296,8 @@
       return r.json();
     });
   }
-  function apiSaveKnockout(idx, sets, tiebreak, reset){
-    return fetch("/api/knockout/matches/" + idx, {
+  function apiSaveKnockout(idx, sets, tiebreak, reset, round){
+    return fetch((round === "oitavas" ? "/api/oitavas/matches/" : "/api/knockout/matches/") + idx, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ sets: sets, tiebreak: tiebreak, reset: !!reset })
@@ -307,6 +319,11 @@
       state.order.sort(function(a,b){ return parseInt(a,10) - parseInt(b,10); });
       if(state.selected === null && state.order.length) state.selected = state.order[0];
       state.knockout = data.knockout || [];
+      state.oitavas = (data.oitavas && data.oitavas.length) ? data.oitavas : null;
+      if(!state.tabSet){
+        state.tabSet = true;
+        state.tab = (state.oitavas || koAllDone()) ? "oitavas" : "mata-mata";
+      }
       state.loaded = true;
       // não redesenha enquanto um popup de lançamento está aberto (senão apaga o que está sendo digitado)
       if(state.modal || state.koModal) return;
@@ -328,8 +345,9 @@
     });
   }
   function saveKnockout(idx, sets, tiebreak, reset){
-    apiSaveKnockout(idx, sets, tiebreak, reset).then(function(resp){
-      state.knockout[idx] = resp.match;
+    var round = state.koModal && state.koModal.round ? state.koModal.round : "ko";
+    apiSaveKnockout(idx, sets, tiebreak, reset, round).then(function(resp){
+      koList(round)[idx] = resp.match;
       state.koModal = null;
       render();
     }).catch(function(e){
@@ -360,13 +378,14 @@
     app.appendChild(head);
 
     var tabs = el("nav", {class:"tabs"}, [
+      el("button", {class: state.tab==="oitavas" ? "active":"", onclick:function(){ state.tab="oitavas"; render(); }}, [txt("Oitavas")]),
       el("button", {class: state.tab==="mata-mata" ? "active":"", onclick:function(){ state.tab="mata-mata"; render(); }}, [txt("Fase Eliminatória")]),
       el("button", {class: state.tab==="grupos" ? "active":"", onclick:function(){ state.tab="grupos"; render(); }}, [txt("Grupos")]),
       el("button", {class: state.tab==="visao" ? "active":"", onclick:function(){ state.tab="visao"; render(); }}, [txt("Visão Geral")])
     ]);
     app.appendChild(tabs);
 
-    if(state.tab !== "mata-mata") app.appendChild(el("div", {class:"rules-note"}, [txt(
+    if(state.tab !== "mata-mata" && state.tab !== "oitavas") app.appendChild(el("div", {class:"rules-note"}, [txt(
       "Pontuação: vitória normal = 3 pts · vitória no tie-break (7x6) = 2 pts · derrota no tie-break = 1 pt · derrota normal = 0 pt. Qualquer pessoa com este link pode lançar ou editar um resultado."
     )]));
 
@@ -377,6 +396,8 @@
 
     if(state.tab === "grupos"){
       renderGruposTab(app);
+    } else if(state.tab === "oitavas"){
+      renderOitavasTab(app);
     } else if(state.tab === "mata-mata"){
       renderKnockoutTab(app);
     } else {
@@ -583,7 +604,9 @@
     app.appendChild(grid);
   }
 
-  function renderKoMatchCard(m, idx){
+  function renderKoMatchCard(m, idx, round){
+    round = round || "ko";
+    var openKey = round + ":" + idx;
     var status = koStatus(m);
     var winner = koWinner(m);
     var w = koSetsWon(m);
@@ -595,7 +618,7 @@
     mcard.appendChild(el("span", {class:"ko-tag " + tagClass}, [txt(tagText)]));
 
     var hasResult = status !== "pending";
-    var isOpen = !!(state.koOpen && state.koOpen[idx]);
+    var isOpen = !!(state.koOpen && state.koOpen[openKey]);
 
     var midNode = hasResult
       ? el("span", {class:"ko-score-mid"}, [txt((w[0] + (winner==="A" && w[0]===w[1] ? 1 : 0)) + " x " + (w[1] + (winner==="B" && w[0]===w[1] ? 1 : 0)))])
@@ -615,7 +638,7 @@
     if(hasResult){
       prow.addEventListener("click", function(){
         state.koOpen = state.koOpen || {};
-        state.koOpen[idx] = !state.koOpen[idx];
+        state.koOpen[openKey] = !state.koOpen[openKey];
         render();
       });
     }
@@ -645,12 +668,78 @@
     } else {
       bottom.appendChild(el("div", {class:"ko-sets ko-sets-empty"}, [txt("Resultado pendente")]));
     }
-    bottom.appendChild(el("button", {class:"edit-btn", onclick:(function(i){ return function(){ openKoModal(i); }; })(idx)}, [
+    bottom.appendChild(el("button", {class:"edit-btn", onclick:(function(i){ return function(){ openKoModal(i, round); }; })(idx)}, [
       txt(status === "pending" ? "Lançar resultado" : "Editar")
     ]));
     mcard.appendChild(bottom);
 
     return mcard;
+  }
+
+  function drawOitavas(){
+    if(state.drawing) return;
+    state.drawing = true;
+    render();
+    fetch("/api/oitavas/draw", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" })
+      .then(function(r){
+        return r.json().then(function(j){
+          if(!r.ok) throw new Error(j.error || "erro ao sortear");
+          return j;
+        });
+      })
+      .then(function(j){
+        state.oitavas = j.oitavas;
+        state.koOpen = {};
+        state.drawing = false;
+        render();
+      })
+      .catch(function(e){
+        state.drawing = false;
+        showToast(e.message || "Erro ao sortear");
+        render();
+      });
+  }
+
+  function renderOitavasTab(app){
+    app.appendChild(el("div", {class:"rules-note"}, [txt(
+      "Oitavas de final: os 16 vencedores da fase eliminatória são sorteados em 8 jogos. Jogadores que eram do mesmo grupo na fase de grupos não se enfrentam (só poderiam se reencontrar na final). Cada jogo vale 2 sets; se ficar 1x1, decide no tie-break de 10 pontos (vencer por 2 de diferença — 10x8, 12x10, 14x12 e assim por diante)."
+    )]));
+
+    if(!state.oitavas){
+      var done = (state.knockout || []).filter(function(m){ return !!koWinner(m); }).length;
+      var total = (state.knockout || []).length;
+      var ready = total > 0 && done === total;
+      var box = el("div", {class:"draw-box"}, [
+        el("div", {class:"draw-title"}, [txt(ready ? "Tudo pronto para o sorteio!" : "Aguardando o fim da fase eliminatória")]),
+        el("div", {class:"draw-sub"}, [txt(done + " de " + total + " jogos da fase eliminatória finalizados" + (ready ? "" : " — o sorteio libera quando todos tiverem resultado."))])
+      ]);
+      var btn = el("button", {class:"draw-btn", onclick:drawOitavas}, [txt(state.drawing ? "Sorteando..." : "🎲 Sortear oitavas")]);
+      if(!ready || state.drawing) btn.disabled = true;
+      box.appendChild(btn);
+      app.appendChild(box);
+      return;
+    }
+
+    var wrap = el("div", {class:"ko-confrontos"});
+    state.oitavas.forEach(function(m, i){
+      var section = el("div", {class:"ko-confronto"});
+      section.appendChild(el("div", {class:"ko-confronto-head"}, [
+        el("span", {class:"num"}, [txt("Oitava " + (i+1))]),
+        el("span", {class:"vs-groups"}, [txt("Grupo " + m.groupA + " × Grupo " + m.groupB)])
+      ]));
+      section.appendChild(el("div", {class:"ko-confronto-body"}, [renderKoMatchCard(m, i, "oitavas")]));
+      wrap.appendChild(section);
+    });
+    app.appendChild(wrap);
+
+    var anyResult = state.oitavas.some(function(m){ return koStatus(m) !== "pending"; });
+    if(!anyResult){
+      app.appendChild(el("div", {class:"draw-redo"}, [
+        el("button", {class:"btn-secondary", onclick:function(){
+          if(window.confirm("Refazer o sorteio das oitavas? O sorteio atual será descartado.")) drawOitavas();
+        }}, [txt("🎲 Refazer sorteio")])
+      ]));
+    }
   }
 
   function renderKnockoutTab(app){
@@ -692,14 +781,15 @@
   function renderKoModal(app){
     if(!state.koModal) return;
     var idx = state.koModal.idx;
-    var m = state.knockout[idx];
+    var round = state.koModal.round || "ko";
+    var m = koList(round)[idx];
     if(!m){ state.koModal = null; return; }
 
     var overlay = el("div", {class:"modal-overlay", onclick:function(e){ if(e.target === overlay) closeKoModal(); }});
     var box = el("div", {class:"modal-box"});
 
     box.appendChild(el("div", {class:"modal-header"}, [
-      el("h3", {}, [txt("Resultado — Mata-mata")]),
+      el("h3", {}, [txt(round === "oitavas" ? "Resultado — Oitavas" : "Resultado — Mata-mata")]),
       el("button", {class:"modal-x", onclick:function(){ closeKoModal(); }}, [txt("×")])
     ]));
 
