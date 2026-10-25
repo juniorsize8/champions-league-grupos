@@ -330,6 +330,129 @@ app.post("/api/knockout/matches/:idx", (req, res) => {
   res.json({ ok: true, match: m });
 });
 
+// ---- Oitavas de final -----------------------------------------------------
+// Os 16 vencedores da fase eliminatória são sorteados em 8 jogos. Regra:
+// jogadores que foram do mesmo grupo na fase de grupos não podem se enfrentar
+// (só poderiam se reencontrar na final).
+function koWinnerOf(m) {
+  const val = (v) => v !== null && v !== undefined;
+  let wa = 0, wb = 0;
+  (m.sets || []).forEach((s) => {
+    if (!s || !val(s.a) || !val(s.b)) return;
+    if (s.a > s.b) wa++; else if (s.b > s.a) wb++;
+  });
+  let side = null;
+  if (wa >= 2) side = "A";
+  else if (wb >= 2) side = "B";
+  else if (wa === 1 && wb === 1 && m.tiebreak && val(m.tiebreak.a) && val(m.tiebreak.b)) {
+    if (m.tiebreak.a > m.tiebreak.b) side = "A";
+    else if (m.tiebreak.b > m.tiebreak.a) side = "B";
+  }
+  if (!side) return null;
+  return side === "A"
+    ? { player: m.playerA, group: m.groupA, pos: m.posA }
+    : { player: m.playerB, group: m.groupB, pos: m.posB };
+}
+
+function shuffleArr(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Pareamento aleatório com backtracking: ninguém enfrenta alguém do mesmo grupo.
+function pairPlayers(players) {
+  function solve(rest) {
+    if (rest.length === 0) return [];
+    const first = rest[0];
+    const others = shuffleArr(rest.slice(1));
+    for (let k = 0; k < others.length; k++) {
+      const cand = others[k];
+      if (cand.group === first.group) continue;
+      const remaining = rest.slice(1).filter((p) => p !== cand);
+      const sub = solve(remaining);
+      if (sub) return [[first, cand]].concat(sub);
+    }
+    return null;
+  }
+  return solve(shuffleArr(players));
+}
+
+function hasAnyResult(m) {
+  return (m.sets || []).some((s) => s && s.a !== null && s.a !== undefined);
+}
+
+app.post("/api/oitavas/draw", (req, res) => {
+  const data = readData();
+  const ko = data.knockout || [];
+  if (ko.length === 0) return res.status(400).json({ error: "fase eliminatória não encontrada" });
+  const winners = ko.map(koWinnerOf);
+  if (winners.some((w) => !w)) {
+    return res.status(400).json({ error: "Ainda há jogos da fase eliminatória sem resultado final." });
+  }
+  if (Array.isArray(data.oitavas) && data.oitavas.some(hasAnyResult)) {
+    return res.status(409).json({ error: "As oitavas já têm resultados lançados; não é possível refazer o sorteio." });
+  }
+  const pairs = pairPlayers(winners);
+  if (!pairs) {
+    return res.status(422).json({ error: "Não foi possível sortear sem repetir jogadores do mesmo grupo." });
+  }
+  data.oitavas = pairs.map((p, i) => ({
+    idx: i,
+    groupA: p[0].group, posA: p[0].pos, playerA: p[0].player,
+    groupB: p[1].group, posB: p[1].pos, playerB: p[1].player,
+    sets: emptySets(),
+    tiebreak: { a: null, b: null },
+  }));
+  writeData(data);
+  res.json({ ok: true, oitavas: data.oitavas });
+});
+
+app.post("/api/oitavas/matches/:idx", (req, res) => {
+  const { sets, tiebreak, reset } = req.body || {};
+  const i = parseInt(req.params.idx, 10);
+  const data = readData();
+  if (!Array.isArray(data.oitavas) || !data.oitavas[i]) {
+    return res.status(404).json({ error: "oitavas match not found" });
+  }
+  const m = data.oitavas[i];
+  if (reset) {
+    m.sets = emptySets();
+    m.tiebreak = { a: null, b: null };
+    writeData(data);
+    return res.json({ ok: true, match: m });
+  }
+  if (!Array.isArray(sets) || sets.length !== 2) {
+    return res.status(400).json({ error: "invalid sets" });
+  }
+  const s0a = parseInt(sets[0] && sets[0].a, 10);
+  const s0b = parseInt(sets[0] && sets[0].b, 10);
+  const s1a = parseInt(sets[1] && sets[1].a, 10);
+  const s1b = parseInt(sets[1] && sets[1].b, 10);
+  if (!isValidSetScore(s0a, s0b) || !isValidSetScore(s1a, s1b)) {
+    return res.status(400).json({ error: "invalid set score" });
+  }
+  const aWins = (s0a > s0b ? 1 : 0) + (s1a > s1b ? 1 : 0);
+  const bWins = (s0b > s0a ? 1 : 0) + (s1b > s1a ? 1 : 0);
+  let tb = { a: null, b: null };
+  if (aWins === 1 && bWins === 1) {
+    const ta = parseInt(tiebreak && tiebreak.a, 10);
+    const tbv = parseInt(tiebreak && tiebreak.b, 10);
+    if (!isValidTiebreak(ta, tbv)) {
+      return res.status(400).json({ error: "invalid tiebreak" });
+    }
+    tb = { a: ta, b: tbv };
+  }
+  m.sets = [{ a: s0a, b: s0b }, { a: s1a, b: s1b }];
+  m.tiebreak = tb;
+  writeData(data);
+  res.json({ ok: true, match: m });
+});
+// ---------------------------------------------------------------------------
+
 const PORT = process.env.PORT || 3000;
 loadFromGithubIfConfigured().finally(() => {
   ensureKnockoutSeeded();
