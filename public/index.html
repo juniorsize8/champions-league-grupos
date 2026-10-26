@@ -732,14 +732,6 @@
     });
     app.appendChild(wrap);
 
-    var anyResult = state.oitavas.some(function(m){ return koStatus(m) !== "pending"; });
-    if(!anyResult){
-      app.appendChild(el("div", {class:"draw-redo"}, [
-        el("button", {class:"btn-secondary", onclick:function(){
-          if(window.confirm("Refazer o sorteio das oitavas? O sorteio atual será descartado.")) drawOitavas();
-        }}, [txt("🎲 Refazer sorteio")])
-      ]));
-    }
   }
 
   function renderKnockoutTab(app){
