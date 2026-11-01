@@ -1404,5 +1404,99 @@
         "b": null
       }
     }
+  ],
+  "quartas": [
+    {
+      "idx": 0,
+      "groupA": 16,
+      "posA": 2,
+      "playerA": "Fabio Lacaz",
+      "groupB": 12,
+      "posB": 1,
+      "playerB": "Rodrigo Ruic",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 1,
+      "groupA": 15,
+      "posA": 1,
+      "playerA": "Junior",
+      "groupB": 13,
+      "posB": 1,
+      "playerB": "Marquinhos Ashcar",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 2,
+      "groupA": 9,
+      "posA": 1,
+      "playerA": "Davi",
+      "groupB": 11,
+      "posB": 1,
+      "playerB": "Joao Lima",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 3,
+      "groupA": 16,
+      "posA": 1,
+      "playerA": "Bruno Affonso",
+      "groupB": 6,
+      "posB": 1,
+      "playerB": "Felipe",
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    }
   ]
 }
