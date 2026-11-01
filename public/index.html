@@ -155,7 +155,7 @@
 <script>
 (function(){
   var ROUNDS = [[1,4],[2,3],[1,3],[2,4],[1,2],[3,4]];
-  var state = { groups: {}, order: [], selected: null, tab: "mata-mata", loaded: false, modal: null, knockout: [], oitavas: null, koModal: null, koOpen: {}, tabSet: false, drawing: false };
+  var state = { groups: {}, order: [], selected: null, tab: "mata-mata", loaded: false, modal: null, knockout: [], oitavas: null, quartas: null, koModal: null, koOpen: {}, tabSet: false, drawing: false };
 
   function openModal(groupId, idx){
     state.modal = { groupId: groupId, idx: idx };
@@ -166,7 +166,7 @@
     render();
   }
   function koList(round){
-    return round === "oitavas" ? (state.oitavas || []) : (state.knockout || []);
+    return round === "oitavas" ? (state.oitavas || []) : (round === "quartas" ? (state.quartas || []) : (state.knockout || []));
   }
   function openKoModal(idx, round){
     state.koModal = { idx: idx, round: round || "ko" };
@@ -237,6 +237,9 @@
     }
     return null;
   }
+  function listAllDone(list){
+    return !!(list && list.length) && list.every(function(m){ return !!koWinner(m); });
+  }
   function koAllDone(){
     return !!(state.knockout && state.knockout.length) && state.knockout.every(function(m){ return !!koWinner(m); });
   }
@@ -297,7 +300,7 @@
     });
   }
   function apiSaveKnockout(idx, sets, tiebreak, reset, round){
-    return fetch((round === "oitavas" ? "/api/oitavas/matches/" : "/api/knockout/matches/") + idx, {
+    return fetch((round === "oitavas" ? "/api/oitavas/matches/" : (round === "quartas" ? "/api/quartas/matches/" : "/api/knockout/matches/")) + idx, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ sets: sets, tiebreak: tiebreak, reset: !!reset })
@@ -320,9 +323,10 @@
       if(state.selected === null && state.order.length) state.selected = state.order[0];
       state.knockout = data.knockout || [];
       state.oitavas = (data.oitavas && data.oitavas.length) ? data.oitavas : null;
+      state.quartas = (data.quartas && data.quartas.length) ? data.quartas : null;
       if(!state.tabSet){
         state.tabSet = true;
-        state.tab = (state.oitavas || koAllDone()) ? "oitavas" : "mata-mata";
+        state.tab = (state.quartas || listAllDone(state.oitavas)) ? "quartas" : ((state.oitavas || koAllDone()) ? "oitavas" : "mata-mata");
       }
       state.loaded = true;
       // não redesenha enquanto um popup de lançamento está aberto (senão apaga o que está sendo digitado)
@@ -378,6 +382,7 @@
     app.appendChild(head);
 
     var tabs = el("nav", {class:"tabs"}, [
+      el("button", {class: state.tab==="quartas" ? "active":"", onclick:function(){ state.tab="quartas"; render(); }}, [txt("Quartas")]),
       el("button", {class: state.tab==="oitavas" ? "active":"", onclick:function(){ state.tab="oitavas"; render(); }}, [txt("Oitavas")]),
       el("button", {class: state.tab==="mata-mata" ? "active":"", onclick:function(){ state.tab="mata-mata"; render(); }}, [txt("Fase Eliminatória")]),
       el("button", {class: state.tab==="grupos" ? "active":"", onclick:function(){ state.tab="grupos"; render(); }}, [txt("Grupos")]),
@@ -385,7 +390,7 @@
     ]);
     app.appendChild(tabs);
 
-    if(state.tab !== "mata-mata" && state.tab !== "oitavas") app.appendChild(el("div", {class:"rules-note"}, [txt(
+    if(state.tab !== "mata-mata" && state.tab !== "oitavas" && state.tab !== "quartas") app.appendChild(el("div", {class:"rules-note"}, [txt(
       "Pontuação: vitória normal = 3 pts · vitória no tie-break (7x6) = 2 pts · derrota no tie-break = 1 pt · derrota normal = 0 pt. Qualquer pessoa com este link pode lançar ou editar um resultado."
     )]));
 
@@ -396,6 +401,8 @@
 
     if(state.tab === "grupos"){
       renderGruposTab(app);
+    } else if(state.tab === "quartas"){
+      renderQuartasTab(app);
     } else if(state.tab === "oitavas"){
       renderOitavasTab(app);
     } else if(state.tab === "mata-mata"){
@@ -700,6 +707,64 @@
       });
   }
 
+  function drawQuartas(){
+    if(state.drawing) return;
+    state.drawing = true;
+    render();
+    fetch("/api/quartas/draw", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" })
+      .then(function(r){
+        return r.json().then(function(j){
+          if(!r.ok) throw new Error(j.error || "erro ao sortear");
+          return j;
+        });
+      })
+      .then(function(j){
+        state.quartas = j.quartas;
+        state.koOpen = {};
+        state.drawing = false;
+        render();
+      })
+      .catch(function(e){
+        state.drawing = false;
+        showToast(e.message || "Erro ao sortear");
+        render();
+      });
+  }
+
+  function renderQuartasTab(app){
+    app.appendChild(el("div", {class:"rules-note"}, [txt(
+      "Quartas de final: os 8 vencedores das oitavas são sorteados em 4 jogos. Jogadores que eram do mesmo grupo na fase de grupos não se enfrentam (só poderiam se reencontrar na final). Cada jogo vale 2 sets; se ficar 1x1, decide no tie-break de 10 pontos (vencer por 2 de diferença — 10x8, 12x10, 14x12 e assim por diante)."
+    )]));
+
+    if(!state.quartas){
+      var list = state.oitavas || [];
+      var done = list.filter(function(m){ return !!koWinner(m); }).length;
+      var total = list.length;
+      var ready = total > 0 && done === total;
+      var box = el("div", {class:"draw-box"}, [
+        el("div", {class:"draw-title"}, [txt(ready ? "Tudo pronto para o sorteio!" : "Aguardando o fim das oitavas")]),
+        el("div", {class:"draw-sub"}, [txt(total ? (done + " de " + total + " jogos das oitavas finalizados" + (ready ? "" : " — o sorteio libera quando todos tiverem resultado.")) : "As oitavas ainda não foram sorteadas.")])
+      ]);
+      var btn = el("button", {class:"draw-btn", onclick:drawQuartas}, [txt(state.drawing ? "Sorteando..." : "🎲 Sortear quartas")]);
+      if(!ready || state.drawing) btn.disabled = true;
+      box.appendChild(btn);
+      app.appendChild(box);
+      return;
+    }
+
+    var wrap = el("div", {class:"ko-confrontos"});
+    state.quartas.forEach(function(m, i){
+      var section = el("div", {class:"ko-confronto"});
+      section.appendChild(el("div", {class:"ko-confronto-head"}, [
+        el("span", {class:"num"}, [txt("Quarta " + (i+1))]),
+        el("span", {class:"vs-groups"}, [txt("Grupo " + m.groupA + " × Grupo " + m.groupB)])
+      ]));
+      section.appendChild(el("div", {class:"ko-confronto-body"}, [renderKoMatchCard(m, i, "quartas")]));
+      wrap.appendChild(section);
+    });
+    app.appendChild(wrap);
+  }
+
   function renderOitavasTab(app){
     app.appendChild(el("div", {class:"rules-note"}, [txt(
       "Oitavas de final: os 16 vencedores da fase eliminatória são sorteados em 8 jogos. Jogadores que eram do mesmo grupo na fase de grupos não se enfrentam (só poderiam se reencontrar na final). Cada jogo vale 2 sets; se ficar 1x1, decide no tie-break de 10 pontos (vencer por 2 de diferença — 10x8, 12x10, 14x12 e assim por diante)."
@@ -781,7 +846,7 @@
     var box = el("div", {class:"modal-box"});
 
     box.appendChild(el("div", {class:"modal-header"}, [
-      el("h3", {}, [txt(round === "oitavas" ? "Resultado — Oitavas" : "Resultado — Mata-mata")]),
+      el("h3", {}, [txt(round === "oitavas" ? "Resultado — Oitavas" : (round === "quartas" ? "Resultado — Quartas" : "Resultado — Mata-mata"))]),
       el("button", {class:"modal-x", onclick:function(){ closeKoModal(); }}, [txt("×")])
     ]));
 
