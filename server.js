@@ -453,6 +453,77 @@ app.post("/api/oitavas/matches/:idx", (req, res) => {
 });
 // ---------------------------------------------------------------------------
 
+// ---- Quartas de final -----------------------------------------------------
+// Os 8 vencedores das oitavas são sorteados em 4 jogos, com a mesma regra:
+// ninguém enfrenta alguém do mesmo grupo da fase de grupos.
+app.post("/api/quartas/draw", (req, res) => {
+  const data = readData();
+  const oit = data.oitavas || [];
+  if (oit.length === 0) return res.status(400).json({ error: "oitavas ainda não sorteadas" });
+  const winners = oit.map(koWinnerOf);
+  if (winners.some((w) => !w)) {
+    return res.status(400).json({ error: "Ainda há jogos das oitavas sem resultado final." });
+  }
+  if (Array.isArray(data.quartas) && data.quartas.some(hasAnyResult)) {
+    return res.status(409).json({ error: "As quartas já têm resultados lançados; não é possível refazer o sorteio." });
+  }
+  const pairs = pairPlayers(winners);
+  if (!pairs) {
+    return res.status(422).json({ error: "Não foi possível sortear sem repetir jogadores do mesmo grupo." });
+  }
+  data.quartas = pairs.map((p, i) => ({
+    idx: i,
+    groupA: p[0].group, posA: p[0].pos, playerA: p[0].player,
+    groupB: p[1].group, posB: p[1].pos, playerB: p[1].player,
+    sets: emptySets(),
+    tiebreak: { a: null, b: null },
+  }));
+  writeData(data);
+  res.json({ ok: true, quartas: data.quartas });
+});
+
+app.post("/api/quartas/matches/:idx", (req, res) => {
+  const { sets, tiebreak, reset } = req.body || {};
+  const i = parseInt(req.params.idx, 10);
+  const data = readData();
+  if (!Array.isArray(data.quartas) || !data.quartas[i]) {
+    return res.status(404).json({ error: "quartas match not found" });
+  }
+  const m = data.quartas[i];
+  if (reset) {
+    m.sets = emptySets();
+    m.tiebreak = { a: null, b: null };
+    writeData(data);
+    return res.json({ ok: true, match: m });
+  }
+  if (!Array.isArray(sets) || sets.length !== 2) {
+    return res.status(400).json({ error: "invalid sets" });
+  }
+  const s0a = parseInt(sets[0] && sets[0].a, 10);
+  const s0b = parseInt(sets[0] && sets[0].b, 10);
+  const s1a = parseInt(sets[1] && sets[1].a, 10);
+  const s1b = parseInt(sets[1] && sets[1].b, 10);
+  if (!isValidSetScore(s0a, s0b) || !isValidSetScore(s1a, s1b)) {
+    return res.status(400).json({ error: "invalid set score" });
+  }
+  const aWins = (s0a > s0b ? 1 : 0) + (s1a > s1b ? 1 : 0);
+  const bWins = (s0b > s0a ? 1 : 0) + (s1b > s1a ? 1 : 0);
+  let tb = { a: null, b: null };
+  if (aWins === 1 && bWins === 1) {
+    const ta = parseInt(tiebreak && tiebreak.a, 10);
+    const tbv = parseInt(tiebreak && tiebreak.b, 10);
+    if (!isValidTiebreak(ta, tbv)) {
+      return res.status(400).json({ error: "invalid tiebreak" });
+    }
+    tb = { a: ta, b: tbv };
+  }
+  m.sets = [{ a: s0a, b: s0b }, { a: s1a, b: s1b }];
+  m.tiebreak = tb;
+  writeData(data);
+  res.json({ ok: true, match: m });
+});
+// ---------------------------------------------------------------------------
+
 const PORT = process.env.PORT || 3000;
 loadFromGithubIfConfigured().finally(() => {
   ensureKnockoutSeeded();
