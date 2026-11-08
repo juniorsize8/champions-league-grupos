@@ -233,7 +233,9 @@ function ensureKnockoutSeeded() {
 
 app.get("/api/groups", (req, res) => {
   try {
-    res.json(readData());
+    const d = readData();
+    if (typeof syncSemis === "function" && syncSemis(d)) writeData(d);
+    res.json(d);
   } catch (e) {
     res.status(500).json({ error: "failed to read data" });
   }
@@ -490,6 +492,108 @@ app.post("/api/quartas/matches/:idx", (req, res) => {
     return res.status(404).json({ error: "quartas match not found" });
   }
   const m = data.quartas[i];
+  if (reset) {
+    m.sets = emptySets();
+    m.tiebreak = { a: null, b: null };
+    writeData(data);
+    return res.json({ ok: true, match: m });
+  }
+  if (!Array.isArray(sets) || sets.length !== 2) {
+    return res.status(400).json({ error: "invalid sets" });
+  }
+  const s0a = parseInt(sets[0] && sets[0].a, 10);
+  const s0b = parseInt(sets[0] && sets[0].b, 10);
+  const s1a = parseInt(sets[1] && sets[1].a, 10);
+  const s1b = parseInt(sets[1] && sets[1].b, 10);
+  if (!isValidSetScore(s0a, s0b) || !isValidSetScore(s1a, s1b)) {
+    return res.status(400).json({ error: "invalid set score" });
+  }
+  const aWins = (s0a > s0b ? 1 : 0) + (s1a > s1b ? 1 : 0);
+  const bWins = (s0b > s0a ? 1 : 0) + (s1b > s1a ? 1 : 0);
+  let tb = { a: null, b: null };
+  if (aWins === 1 && bWins === 1) {
+    const ta = parseInt(tiebreak && tiebreak.a, 10);
+    const tbv = parseInt(tiebreak && tiebreak.b, 10);
+    if (!isValidTiebreak(ta, tbv)) {
+      return res.status(400).json({ error: "invalid tiebreak" });
+    }
+    tb = { a: ta, b: tbv };
+  }
+  m.sets = [{ a: s0a, b: s0b }, { a: s1a, b: s1b }];
+  m.tiebreak = tb;
+  writeData(data);
+  res.json({ ok: true, match: m });
+});
+// ---------------------------------------------------------------------------
+
+// ---- Semifinal ------------------------------------------------------------
+// Os 4 vencedores das quartas são sorteados em 2 jogos. Se uma quarta ainda não
+// terminou, a vaga entra como "Vencedor da Quarta N" e é preenchida sozinha
+// quando esse jogo fechar. Mesma regra: ninguém enfrenta alguém do mesmo grupo.
+function syncSemis(data) {
+  if (!Array.isArray(data.semis) || !Array.isArray(data.quartas)) return false;
+  let changed = false;
+  data.semis.forEach((m) => {
+    ["A", "B"].forEach((side) => {
+      const pend = m["pending" + side];
+      if (pend === null || pend === undefined) return;
+      const q = data.quartas[pend];
+      const w = q ? koWinnerOf(q) : null;
+      if (!w) return;
+      m["player" + side] = w.player;
+      m["group" + side] = w.group;
+      m["pos" + side] = w.pos;
+      m["pending" + side] = null;
+      changed = true;
+    });
+  });
+  return changed;
+}
+
+app.post("/api/semis/draw", (req, res) => {
+  const data = readData();
+  const qs = data.quartas || [];
+  if (qs.length === 0) return res.status(400).json({ error: "quartas ainda não sorteadas" });
+  if (Array.isArray(data.semis) && data.semis.length) {
+    return res.status(409).json({ error: "A semifinal já foi sorteada." });
+  }
+  const players = qs.map((q, i) => {
+    const w = koWinnerOf(q);
+    return w
+      ? { player: w.player, group: w.group, pos: w.pos, pending: null }
+      : { player: "Vencedor da Quarta " + (i + 1), group: null, pos: null, pending: i };
+  });
+  const pendingCount = players.filter((p) => p.pending !== null).length;
+  if (pendingCount > 1) {
+    return res.status(400).json({ error: "Ainda há mais de uma quarta sem resultado." });
+  }
+  const pairs = pairPlayers(players);
+  if (!pairs) {
+    return res.status(422).json({ error: "Não foi possível sortear sem repetir jogadores do mesmo grupo." });
+  }
+  data.semis = pairs.map((p, i) => ({
+    idx: i,
+    groupA: p[0].group, posA: p[0].pos, playerA: p[0].player, pendingA: p[0].pending,
+    groupB: p[1].group, posB: p[1].pos, playerB: p[1].player, pendingB: p[1].pending,
+    sets: emptySets(),
+    tiebreak: { a: null, b: null },
+  }));
+  writeData(data);
+  res.json({ ok: true, semis: data.semis });
+});
+
+app.post("/api/semis/matches/:idx", (req, res) => {
+  const { sets, tiebreak, reset } = req.body || {};
+  const i = parseInt(req.params.idx, 10);
+  const data = readData();
+  if (syncSemis(data)) writeData(data);
+  if (!Array.isArray(data.semis) || !data.semis[i]) {
+    return res.status(404).json({ error: "semis match not found" });
+  }
+  const m = data.semis[i];
+  if (m.pendingA != null || m.pendingB != null) {
+    return res.status(409).json({ error: "Aguardando o vencedor da quarta para lançar este jogo." });
+  }
   if (reset) {
     m.sets = emptySets();
     m.tiebreak = { a: null, b: null };
