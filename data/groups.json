@@ -1498,5 +1498,57 @@
         "b": null
       }
     }
+  ],
+  "semis": [
+    {
+      "idx": 0,
+      "groupA": 6,
+      "posA": 1,
+      "playerA": "Felipe",
+      "pendingA": null,
+      "groupB": 12,
+      "posB": 1,
+      "playerB": "Rodrigo Ruic",
+      "pendingB": null,
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    },
+    {
+      "idx": 1,
+      "groupA": 13,
+      "posA": 1,
+      "playerA": "Marquinhos Ashcar",
+      "pendingA": null,
+      "groupB": null,
+      "posB": null,
+      "playerB": "Vencedor da Quarta 3",
+      "pendingB": 2,
+      "sets": [
+        {
+          "a": null,
+          "b": null
+        },
+        {
+          "a": null,
+          "b": null
+        }
+      ],
+      "tiebreak": {
+        "a": null,
+        "b": null
+      }
+    }
   ]
 }
