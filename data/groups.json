@@ -1462,17 +1462,17 @@
       "playerB": "Joao Lima",
       "sets": [
         {
-          "a": null,
-          "b": null
+          "a": 4,
+          "b": 6
         },
         {
-          "a": null,
-          "b": null
+          "a": 6,
+          "b": 3
         }
       ],
       "tiebreak": {
-        "a": null,
-        "b": null
+        "a": 10,
+        "b": 8
       }
     },
     {
