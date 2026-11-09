@@ -1531,10 +1531,10 @@
       "posA": 1,
       "playerA": "Marquinhos Ashcar",
       "pendingA": null,
-      "groupB": null,
-      "posB": null,
-      "playerB": "Vencedor da Quarta 3",
-      "pendingB": 2,
+      "groupB": 9,
+      "posB": 1,
+      "playerB": "Davi",
+      "pendingB": null,
       "sets": [
         {
           "a": null,
