@@ -234,7 +234,9 @@ function ensureKnockoutSeeded() {
 app.get("/api/groups", (req, res) => {
   try {
     const d = readData();
-    if (typeof syncSemis === "function" && syncSemis(d)) writeData(d);
+    const c1 = syncSemis(d);
+    const c2 = typeof syncFinal === "function" ? syncFinal(d) : false;
+    if (c1 || c2) writeData(d);
     res.json(d);
   } catch (e) {
     res.status(500).json({ error: "failed to read data" });
@@ -593,6 +595,87 @@ app.post("/api/semis/matches/:idx", (req, res) => {
   const m = data.semis[i];
   if (m.pendingA != null || m.pendingB != null) {
     return res.status(409).json({ error: "Aguardando o vencedor da quarta para lançar este jogo." });
+  }
+  if (reset) {
+    m.sets = emptySets();
+    m.tiebreak = { a: null, b: null };
+    writeData(data);
+    return res.json({ ok: true, match: m });
+  }
+  if (!Array.isArray(sets) || sets.length !== 2) {
+    return res.status(400).json({ error: "invalid sets" });
+  }
+  const s0a = parseInt(sets[0] && sets[0].a, 10);
+  const s0b = parseInt(sets[0] && sets[0].b, 10);
+  const s1a = parseInt(sets[1] && sets[1].a, 10);
+  const s1b = parseInt(sets[1] && sets[1].b, 10);
+  if (!isValidSetScore(s0a, s0b) || !isValidSetScore(s1a, s1b)) {
+    return res.status(400).json({ error: "invalid set score" });
+  }
+  const aWins = (s0a > s0b ? 1 : 0) + (s1a > s1b ? 1 : 0);
+  const bWins = (s0b > s0a ? 1 : 0) + (s1b > s1a ? 1 : 0);
+  let tb = { a: null, b: null };
+  if (aWins === 1 && bWins === 1) {
+    const ta = parseInt(tiebreak && tiebreak.a, 10);
+    const tbv = parseInt(tiebreak && tiebreak.b, 10);
+    if (!isValidTiebreak(ta, tbv)) {
+      return res.status(400).json({ error: "invalid tiebreak" });
+    }
+    tb = { a: ta, b: tbv };
+  }
+  m.sets = [{ a: s0a, b: s0b }, { a: s1a, b: s1b }];
+  m.tiebreak = tb;
+  writeData(data);
+  res.json({ ok: true, match: m });
+});
+// ---------------------------------------------------------------------------
+
+// ---- Final ----------------------------------------------------------------
+// A final é montada sozinha com os vencedores das duas semifinais. Enquanto uma
+// semifinal não termina, a vaga aparece como "Vencedor da Semifinal N".
+function syncFinal(data) {
+  if (!Array.isArray(data.semis) || data.semis.length < 2) return false;
+  let changed = false;
+  if (!data.final) {
+    const slot = (i) => {
+      const w = koWinnerOf(data.semis[i]);
+      return w
+        ? { player: w.player, group: w.group, pos: w.pos, pending: null }
+        : { player: "Vencedor da Semifinal " + (i + 1), group: null, pos: null, pending: i };
+    };
+    const a = slot(0), b = slot(1);
+    data.final = {
+      idx: 0,
+      groupA: a.group, posA: a.pos, playerA: a.player, pendingA: a.pending,
+      groupB: b.group, posB: b.pos, playerB: b.player, pendingB: b.pending,
+      sets: emptySets(),
+      tiebreak: { a: null, b: null },
+    };
+    changed = true;
+  }
+  const f = data.final;
+  ["A", "B"].forEach((side) => {
+    const pend = f["pending" + side];
+    if (pend === null || pend === undefined) return;
+    const w = koWinnerOf(data.semis[pend]);
+    if (!w) return;
+    f["player" + side] = w.player;
+    f["group" + side] = w.group;
+    f["pos" + side] = w.pos;
+    f["pending" + side] = null;
+    changed = true;
+  });
+  return changed;
+}
+
+app.post("/api/final/matches/:idx", (req, res) => {
+  const { sets, tiebreak, reset } = req.body || {};
+  const data = readData();
+  if (syncFinal(data)) writeData(data);
+  if (!data.final) return res.status(404).json({ error: "final not found" });
+  const m = data.final;
+  if (m.pendingA != null || m.pendingB != null) {
+    return res.status(409).json({ error: "Aguardando os finalistas." });
   }
   if (reset) {
     m.sets = emptySets();
