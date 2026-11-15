@@ -1550,5 +1550,30 @@
         "b": 10
       }
     }
-  ]
+  ],
+  "final": {
+    "idx": 0,
+    "groupA": 6,
+    "posA": 1,
+    "playerA": "Felipe",
+    "pendingA": null,
+    "groupB": 9,
+    "posB": 1,
+    "playerB": "Davi",
+    "pendingB": null,
+    "sets": [
+      {
+        "a": null,
+        "b": null
+      },
+      {
+        "a": null,
+        "b": null
+      }
+    ],
+    "tiebreak": {
+      "a": null,
+      "b": null
+    }
+  }
 }
